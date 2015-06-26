@@ -1,0 +1,5 @@
+bool dummy
+---
+uint32 numAgents
+float64[] c
+float64[] obstacles

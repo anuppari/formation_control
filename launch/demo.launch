@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+
+<launch>
+    <!-- Set environment as simulation with smaller collision bubble -->
+    <arg name="mode" value="demo" />
+    <param name="collisionBubble" value="0.1" />
+    <arg name="ns_prefix" value="ugv" />
+    
+    <include file="$(find mocap_optitrack)/launch/mocap.launch" />
+
+    <!-- Spawn controllers -->
+    <include file="$(find formation_control)/launch/agentControlDemo.launch" ns="$(arg ns_prefix)0"/>
+    <include file="$(find formation_control)/launch/agentControlDemo.launch" ns="$(arg ns_prefix)1"/>
+    <include file="$(find formation_control)/launch/agentControlDemo.launch" ns="$(arg ns_prefix)2"/>
+    <include file="$(find formation_control)/launch/agentControlDemo.launch" ns="$(arg ns_prefix)3"/>
+    <include file="$(find formation_control)/launch/agentControlDemo.launch" ns="$(arg ns_prefix)4"/>
+    
+    <!-- Spawn ground station -->
+    <node name="groundStation" pkg="formation_control" type="groundStation.py" output="screen">
+        <param name="mode" value="$(arg mode)" />
+        <param name="ns_prefix" value="$(arg ns_prefix)" />
+    </node>
+    
+</launch>

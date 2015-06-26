@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+
+<launch>
+
+    <!-- get agent name for namespace from higher level launch file or command line -->
+    <arg name="uavName" />
+    <arg name="mode" default="sim" />
+    <arg name="simX" default="0.0" />
+    <arg name="simY" default="0.0" />
+    
+    <group ns="$(arg uavName)">
+        
+        <!-- Load Sim specific models/hardware -->
+        <arg name="model" default="$(find hector_quadrotor_description)/urdf/quadrotor.gazebo.xacro" />
+        
+        <!-- workaround https://github.com/ros-simulation/gazebo_ros_pkgs/pull/134 -->
+        <param name="robot_description" command="$(find xacro)/xacro.py '$(arg model)'" />
+        
+        <include file="$(find hector_quadrotor_gazebo)/launch/spawn_quadrotor.launch">
+            <arg name="name" value="$(arg uavName)" />
+            <arg name="tf_prefix" value="$(arg uavName)" />
+            <arg name="model" value="$(arg model)" />
+            <arg name="x" value="$(arg simX)" />
+            <arg name="y" value="$(arg simY)" />
+        </include>
+        
+        <!-- Tune velocity follower controller. This controller is build into hector quadrotor -->
+        <param name="controller/twist/linear/xy/k_d" value="2.0" />
+        
+        <!-- Start formation controller -->
+        <node name="formationControl" pkg="formation_control" type="formationControl.py" output="screen">
+            <rosparam command="load" file="$(find formation_control)/config/simParam.yaml" />
+            <param name="mode" value="$(arg mode)" />
+        </node>
+   </group>
+</launch>

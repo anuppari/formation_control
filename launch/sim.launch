@@ -1,0 +1,60 @@
+<?xml version="1.0"?>
+
+<launch>
+    <!-- Set environment as simulation with smaller collision bubble -->
+    <arg name="mode" value="sim" />
+    <arg name="ns_prefix" value="uav" />
+    <arg name="recordData" value="false" />
+    <param name="collisionBubble" value="2.0" />
+    
+    <!-- Start Gazebo with wg world running in (max) realtime -->
+    <include file="$(find gazebo_ros)/launch/empty_world.launch"/>
+
+    <!-- Spawn simulated quadrotor UAVs -->
+    <include file="$(find formation_control)/launch/agentControlSim.launch">
+        <arg name="uavName" value="$(arg ns_prefix)0" />
+        <arg name="mode" value="$(arg mode)" />
+        <arg name="simX" value="10.0" />
+        <arg name="simY" value="-10.0" />
+    </include>
+    <include file="$(find formation_control)/launch/agentControlSim.launch">
+        <arg name="uavName" value="$(arg ns_prefix)1" />
+        <arg name="mode" value="$(arg mode)" />
+        <arg name="simX" value="3.0" />
+        <arg name="simY" value="-10.0" />
+    </include>
+    <include file="$(find formation_control)/launch/agentControlSim.launch">
+        <arg name="uavName" value="$(arg ns_prefix)2" />
+        <arg name="mode" value="$(arg mode)" />
+        <arg name="simX" value="-8.0" />
+        <arg name="simY" value="-9.0" />
+    </include>
+    <include file="$(find formation_control)/launch/agentControlSim.launch">
+        <arg name="uavName" value="$(arg ns_prefix)3" />
+        <arg name="mode" value="$(arg mode)" />
+        <arg name="simX" value="8.0" />
+        <arg name="simY" value="9.0" />
+    </include>
+    <include file="$(find formation_control)/launch/agentControlSim.launch">
+        <arg name="uavName" value="$(arg ns_prefix)4" />
+        <arg name="mode" value="$(arg mode)" />
+        <arg name="simX" value="-10.0" />
+        <arg name="simY" value="4.0" />
+    </include>
+    <include file="$(find formation_control)/launch/agentControlSim.launch">
+        <arg name="uavName" value="$(arg ns_prefix)5" />
+        <arg name="mode" value="$(arg mode)" />
+        <arg name="simX" value="-7.0" />
+        <arg name="simY" value="-5.0" />
+    </include>
+    
+    <!-- Spawn ground station -->
+    <node name="groundStation" pkg="formation_control" type="groundStation.py" output="screen">
+        <param name="mode" value="$(arg mode)" />
+        <param name="ns_prefix" value="$(arg ns_prefix)" />
+    </node>
+    
+    <!-- Record Data -->
+    <node if="$(arg recordData)" name="record" pkg="rosbag" type="record" args="-O /home/maeadmin/formationControlSim.bag tf clock formationInfo uav0/cmd_vel uav1/cmd_vel uav2/cmd_vel uav3/cmd_vel uav4/cmd_vel uav5/cmd_vel" />
+
+</launch>

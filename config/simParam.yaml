@@ -1,0 +1,1 @@
+gains: {'k': 0.1, 'GAMMA': 500, 'delta1': 5, 'delta2': 5, 'Rs': 100}
