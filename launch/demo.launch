@@ -19,6 +19,7 @@
     <node name="groundStation" pkg="formation_control" type="groundStation.py" output="screen">
         <param name="mode" value="$(arg mode)" />
         <param name="ns_prefix" value="$(arg ns_prefix)" />
+        <param name="formation" value="$(find formation_control)/config/demo_formation.csv" />
     </node>
     
 </launch>

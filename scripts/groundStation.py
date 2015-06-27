@@ -29,9 +29,11 @@ def groundStation(): # Main node
     collisionBubble = rospy.get_param('~collisionBubble',0.1)
     ns_prefix = rospy.get_param('~ns_prefix','ugv')
     sensingDropout = rospy.get_param('~sensingDropout',False)
+    formation_file = rospy.get_param('~formation',None)
+    obstacles_file = rospy.get_param('~obstacles',None)
     
     # get formation configuration
-    (numAgents,c,obstacles) = readConfig(mode)
+    (numAgents,c,obstacles) = readConfig(formation_file,obstacles_file)
     rospy.logwarn("GroundStation numAgents: "+str(numAgents))
     
     # start service handler
@@ -103,6 +105,7 @@ def agentPoseCallback(event): # Called at specified rate. gets tf of all agents,
             abortFlag = True
             abortPub.publish(msg)
             rospy.logerr("Ground Station: At least 2 agents broke their collision bubble!")
+            rospy.signal_shutdown("Ground Station: At least 2 agents broke their collision bubble!") # shutdown ground station
         else: # publish if collision bubble not breached
             posePub.publish(poseMsg)
         
@@ -131,24 +134,35 @@ def initFormationHandler(data): # service handler, in case service is applicable
     return GraphsResponse(numAgents,c.tolist(),obstacles.tolist())
 
 
-def readConfig(mode):
+def readConfig(formation_file,obstacles_file):
     # Read formation configuration files
-    dir = roslib.packages.get_pkg_dir('formation_control')+"/config" # package directory
-    cFile = "c"+string.capitalize(mode)
-    obsFile = "obs"+string.capitalize(mode)
+    # dir = roslib.packages.get_pkg_dir('formation_control')+"/config" # package directory
+    #cFile = "c"+string.capitalize(mode)
+    #obsFile = "obs"+string.capitalize(mode)
     
-    rospy.logwarn("Reading graph configuration files from directory: %s", dir)
-    cMat = np.loadtxt(open(dir+"/"+cFile+".csv","rb"),dtype='Float64',delimiter=',') # Read file
-    numAgents = int(cMat[:,0:2].max())+1
-    c = np.zeros((2,numAgents,numAgents),dtype='Float64') # init 3D array
-    for row in cMat: # convert to float array
-        c[0,int(row[0]),int(row[1])] = float(row[2])*formationScale
-        c[1,int(row[0]),int(row[1])] = float(row[3])*formationScale
+    #rospy.logwarn("Reading graph configuration files from directory: %s", dir)
+    #cMat = np.loadtxt(open(dir+"/"+cFile+".csv","rb"),dtype='Float64',delimiter=',') # Read file
+    if formation_file is not None:
+        rospy.logwarn("Reading formation configuration from file: %s", formation_file)
+        cMat = np.loadtxt(open(formation_file,"rb"),dtype='Float64',delimiter=',') # Read file
+        numAgents = int(cMat[:,0:2].max())+1
+        c = np.zeros((2,numAgents,numAgents),dtype='Float64') # init 3D array
+        for row in cMat: # convert to float array
+            c[0,int(row[0]),int(row[1])] = float(row[2])*formationScale
+            c[1,int(row[0]),int(row[1])] = float(row[3])*formationScale
+    else:
+        rospy.logerr("No formation defined!")
+        rospy.signal_shutdown("No formation defined!")
     
-    obstacles = np.loadtxt(open(dir+"/"+obsFile+".csv","rb"),dtype='Float64',delimiter=',') # Read file and Convert to float array
+    #obstacles = np.loadtxt(open(dir+"/"+obsFile+".csv","rb"),dtype='Float64',delimiter=',') # Read file and Convert to float array
+    if obstacles_file is not None:
+        rospy.logwarn("Reading obstacle positions from file: %s", obstacles_file)
+        obstacles = np.loadtxt(open(obstacles_file,"rb"),dtype='Float64',delimiter=',') # Read file and Convert to float array
+    else:
+        rospy.logwarn("No obstacles!")
+        obstacles = np.array([],dtype='Float64')
     
     # Reshape to 1D array for transmission over ROS topic
-    #Nf.shape = Nf.size
     c.shape = c.size
     obstacles.shape = obstacles.size
     

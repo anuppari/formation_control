@@ -29,7 +29,7 @@
         
         <!-- Start formation controller -->
         <node name="formationControl" pkg="formation_control" type="formationControl.py" output="screen">
-            <rosparam command="load" file="$(find formation_control)/config/simParam.yaml" />
+            <rosparam command="load" file="$(find formation_control)/config/sim_param.yaml" />
             <param name="mode" value="$(arg mode)" />
         </node>
    </group>
