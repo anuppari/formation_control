@@ -110,28 +110,6 @@ def agentPoseCallback(event): # Called at specified rate. gets tf of all agents,
         pass
 
 
-def agentPosePublish(agentPoseArray,agentID): # deprecated
-    global posePub, numAgents, abortPub, mode
-    global abortFlag, collisionBubble
-    
-    agentPose = agentPoseArray.poseArray[agentID]
-    
-    # Check if position info for every agent has been received at least once
-    ready = [not agentPoseArray.poseArray[i].header.stamp.secs == agentPoseArray.poseArray[i].header.stamp.nsecs == 0 for i in range(numAgents)]
-    if all(ready):
-        # Check if any agents are too close to each other. Abort if necessary
-        pos = np.array([agentPose.pose.position.x,agentPose.pose.position.y])
-        error = [np.array([agentPoseArray.poseArray[ID].pose.position.x,agentPoseArray.poseArray[ID].pose.position.y])-pos for ID in range(numAgents) if ID != agentID]
-        d = [np.sqrt(np.dot(errorJ,errorJ.T)) for errorJ in error]
-        if any(dJ<collisionBubble for dJ in d) and not (mode == 'sim'):
-            msg = AbortReset(abort=True)
-            abortFlag = True
-            abortPub.publish(msg)
-            rospy.logerr("Ground Station: AN AGENT GOT TOO CLOSE TO AGENT %d!! ABORTING!!!",agentID)
-        else: # only publish if position for each agent has been received at least once and collision bubble not breached
-            posePub.publish(agentPoseArray)
-
-
  # generate sensing set and publish
 def sensingPublisher(event):
     global sensingDropout, numAgents
