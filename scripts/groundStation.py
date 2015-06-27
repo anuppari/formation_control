@@ -32,11 +32,11 @@ def groundStation(): # Main node
     
     # get formation configuration
     (numAgents,c,obstacles) = readConfig(mode)
-    print "GroundStation numAgents: "+str(numAgents)
+    rospy.logwarn("GroundStation numAgents: "+str(numAgents))
     
     # start service handler
     s = rospy.Service('initFormation',Graphs,initFormationHandler)
-    rospy.loginfo("initFormation service started.")
+    rospy.logwarn("initFormation service started.")
     
     # Rate for sending tf as pose msg
     if mode=='sim':
@@ -47,17 +47,17 @@ def groundStation(): # Main node
     # Send tf as pose msg
     tfListener = tf.TransformListener() # Use TF instead of UTM/GPS for sim/demo
     posePub = rospy.Publisher('/allAgentPose',PoseArray,queue_size=1)
-    rospy.loginfo("Publishing agent positions on topic /allAgentPose")
+    rospy.logwarn("Publishing agent positions on topic /allAgentPose")
     rospy.Timer(rospy.Duration.from_sec(rate),agentPoseCallback,oneshot=False)
     
     # Generate new sensing graph at specified interval and publish
     sensingPub = rospy.Publisher('/sensingGraph',Sensing,latch=True,queue_size=10)
-    rospy.loginfo("Publishing sensing graph on topic /sensingGraph")
+    rospy.logwarn("Publishing sensing graph on topic /sensingGraph")
     rospy.Timer(rospy.Duration(1), sensingPublisher) # publish sensing graph info at specified rate
     
     # abort publisher
     abortPub = rospy.Publisher('/abortReset',AbortReset,latch=True,queue_size=10)
-    rospy.loginfo("Monitoring agents for potential collisions...")
+    rospy.logwarn("Monitoring agents for potential collisions...")
     
     rospy.spin() # block until rospy shutdown
     posePub.unregister() # End pose publishing (for avoiding display of errors)
@@ -159,7 +159,7 @@ def readConfig(mode):
     cFile = "c"+string.capitalize(mode)
     obsFile = "obs"+string.capitalize(mode)
     
-    rospy.loginfo("Reading graph configuration files from directory: %s", dir)
+    rospy.logwarn("Reading graph configuration files from directory: %s", dir)
     cMat = np.loadtxt(open(dir+"/"+cFile+".csv","rb"),dtype='Float64',delimiter=',') # Read file
     numAgents = int(cMat[:,0:2].max())+1
     c = np.zeros((2,numAgents,numAgents),dtype='Float64') # init 3D array
