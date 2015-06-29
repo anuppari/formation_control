@@ -9,7 +9,6 @@
 # Proc. Am. Control Conf.,  June 2014
 
 import numpy as np
-from sets import Set # python sets
 import rospy
 
 def calculateControl(parameters,graph,agentPos):
@@ -34,7 +33,7 @@ def calculateControl(parameters,graph,agentPos):
     obsError = [pos-np.array(obstacles[ii,:]) for ii in range(len(obstacles))] # position difference between this agent and obstacles
     dObs = [np.sqrt(np.dot(obsMerror,obsMerror.T)) for obsMerror in obsError] # distance between this agent and obstacles
     
-    Ni = Set(np.nonzero(d<=delta1)[0].tolist()) # set of all potential collisions from all agents
+    Ni = set(np.nonzero(d<=delta1)[0].tolist()) # set of all potential collisions from all agents
     Ni.discard(agentID) # remove this agent from its set of potential collisions
     
     if Nfi == Nfi.intersection(Nsi): # check to make sure agent can sense all formation neighbors (part of contol algorithm)
@@ -55,7 +54,7 @@ def calculateControl(parameters,graph,agentPos):
         gradb = dict(zip(Nfi,[gradbFunction(d[ID],posError[ID],Rs,delta2) for ID in Nfi])) # gradient of bih for all agents in Nf, stored in dictionary
         gradBagents = dict(zip(Ni,[gradBfunction(d[ID],posError[ID],delta1) for ID in Ni])) # gradient of Bih for all agents in Ni, stored in dictionary
         gradBobstacles = [gradBfunction(dObs[ii],obsError[ii],delta1) for ii in range(len(dObs))] # gradient of Bih for all obstacles in M. Don't need dictionary because all agents know of all obstacles
-        gradBeta1 = np.prod(Bagents.values())*np.prod(Bobstacles)*sum([gradb[h]*np.prod([b[l] for l in Nfi.difference(Set([h]))]) for h in Nfi]) # first term of gradient of beta
+        gradBeta1 = np.prod(Bagents.values())*np.prod(Bobstacles)*sum([gradb[h]*np.prod([b[l] for l in Nfi.difference(set([h]))]) for h in Nfi]) # first term of gradient of beta
         gradBeta2 = np.prod(b.values())*sum([gradBagents[h]*np.prod([Bagents[l] for l in Ni if l != h])*np.prod(Bobstacles) for h in Ni]) # first half of second term. Distribute product to separate summations over Ni and Mi. product(b)*sum(Ni and Mi) = product(b)*sum(Ni) + product(b)*sum(Mi)
         gradBeta3 = np.prod(b.values())*sum([gradBobstacles[h]*np.prod(Bagents.values())*np.prod([Bobstacles[l] for l in range(len(dObs)) if l != h]) for h in range(len(dObs))]) # second half of second term
         gradBeta = gradBeta1 + gradBeta2 + gradBeta3

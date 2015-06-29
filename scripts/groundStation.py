@@ -159,11 +159,21 @@ def sensingPublisher(event):
     global sensingDropout, numAgents
     
     if sensingDropout:
-        a = np.random.random_integers(0,1,(numAgents,numAgents)) # generate random array
+        #a = np.random.random_integers(0,1,(numAgents,numAgents)) # generate random array
+        #Ns = ((a+a.T)>0) # symmetrize and convert to bool
+        formation = c
+        formation.shape = (2,numAgents,numAgents) # convert from 1D to 3D. numAgents rows, numAgents columns, 2 depth
+        Nf = [set(np.nonzero(formation[:,agentID,:])[1]) for agentID in range(numAgents)]
+        Ns = np.zeros((numAgents,numAgents),dtype=bool)
+        for ii in range(numAgents):
+            links = Nf[ii].intersection(range(ii+1,numAgents))
+            for jj in links:
+                val = np.random.choice([True,False],p=[0.8,0.2])
+                Ns[ii,jj] = val
+                Ns[jj,ii] = val
     else:
-        a = np.ones((numAgents,numAgents)) # full sensing, no communication loss
+        Ns = np.ones((numAgents,numAgents),dtype=bool) # full sensing, no communication loss
     
-    Ns = ((a+a.T)>0) # symmetrize and convert to bool
     Ns.shape = Ns.size # reshape to 1D array
     
     sensingMsg = Sensing(Ns=Ns.tolist())
@@ -175,14 +185,8 @@ def initFormationHandler(data): # service handler, in case service is applicable
     return GraphsResponse(numAgents,c.tolist(),obstacles.tolist())
 
 
+# Read formation configuration files
 def readConfig(formation_file,obstacles_file,formationScale):
-    # Read formation configuration files
-    # dir = roslib.packages.get_pkg_dir('formation_control')+"/config" # package directory
-    #cFile = "c"+string.capitalize(mode)
-    #obsFile = "obs"+string.capitalize(mode)
-    
-    #rospy.logwarn("Reading graph configuration files from directory: %s", dir)
-    #cMat = np.loadtxt(open(dir+"/"+cFile+".csv","rb"),dtype='Float64',delimiter=',') # Read file
     if formation_file is not None:
         rospy.logwarn("Reading formation configuration from file: %s", formation_file)
         cMat = np.loadtxt(open(formation_file,"rb"),dtype='Float64',delimiter=',') # Read file
@@ -195,7 +199,6 @@ def readConfig(formation_file,obstacles_file,formationScale):
         rospy.logerr("No formation defined!")
         rospy.signal_shutdown("No formation defined!")
     
-    #obstacles = np.loadtxt(open(dir+"/"+obsFile+".csv","rb"),dtype='Float64',delimiter=',') # Read file and Convert to float array
     if obstacles_file is not None:
         rospy.logwarn("Reading obstacle positions from file: %s", obstacles_file)
         obstacles = np.loadtxt(open(obstacles_file,"rb"),dtype='Float64',delimiter=',') # Read file and Convert to float array
