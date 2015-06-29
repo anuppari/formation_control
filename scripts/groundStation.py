@@ -6,6 +6,7 @@
 # distributes positions of all agents to all agents
 
 import rospy
+import threading
 import numpy as np
 import roslib
 import string
@@ -14,15 +15,14 @@ from geometry_msgs.msg import PoseStamped
 from formation_control.msg import PoseArray, Sensing, AbortReset
 from formation_control.srv import Graphs, GraphsResponse
 
-formationScale = 1.3
+lock = threading.Lock()
 
 def groundStation(): # Main node
-    global c, obstacles, numAgents, sensingPub, sensingDropout
+    global c, obstacles, numAgents, sensingPub, sensingDropout, poseMsg
     global posePub, abortPub, tfListener
-    global abortFlag, mode, collisionBubble, ns_prefix
+    global mode, collisionBubble, ns_prefix
     
     rospy.init_node('groundStation')
-    abortFlag = False
     
     # Get some parameters
     mode = rospy.get_param('~mode','demo')
@@ -31,26 +31,39 @@ def groundStation(): # Main node
     sensingDropout = rospy.get_param('~sensingDropout',False)
     formation_file = rospy.get_param('~formation',None)
     obstacles_file = rospy.get_param('~obstacles',None)
+    formationScale = rospy.get_param('~formationScale',1.0)
+    use_gps = rospy.get_param('~use_gps',False)
     
     # get formation configuration
-    (numAgents,c,obstacles) = readConfig(formation_file,obstacles_file)
+    (numAgents,c,obstacles) = readConfig(formation_file,obstacles_file,formationScale)
     rospy.logwarn("GroundStation numAgents: "+str(numAgents))
+    rospy.logwarn("Collision bubble: "+str(collisionBubble))
     
     # start service handler
     s = rospy.Service('initFormation',Graphs,initFormationHandler)
     rospy.logwarn("initFormation service started.")
     
-    # Rate for sending tf as pose msg
-    if mode=='sim':
-        rate = 0.2
-    else:
-        rate = 0.04
-    
-    # Send tf as pose msg
-    tfListener = tf.TransformListener() # Use TF instead of UTM/GPS for sim/demo
+    # pose publisher
     posePub = rospy.Publisher('/allAgentPose',PoseArray,queue_size=1)
     rospy.logwarn("Publishing agent positions on topic /allAgentPose")
-    rospy.Timer(rospy.Duration.from_sec(rate),agentPoseCallback,oneshot=False)
+    
+    # Use simulated sensor fusion or tf
+    if use_gps:
+        # Initialize message
+        poseMsg = PoseArray()
+        poseMsg.poseArray = [PoseStamped() for i in range(numAgents)]
+        
+        init_pose = [{'x':rospy.get_param('/'+ns_prefix+str(agentID)+'/initX'),'y':rospy.get_param('/'+ns_prefix+str(agentID)+'/initY')} for agentID in range(numAgents)] # initial pose of agents
+        pose_subs = [rospy.Subscriber('/'+ns_prefix+str(agentID)+'/pose',PoseStamped,agentPoseCallback,callback_args=(init_pose,agentID),queue_size=1) for agentID in range(numAgents)]
+    else:
+        # Send tf as pose msg
+        if mode=='sim':
+            rate = 0.2
+        else:
+            rate = 0.04
+        rospy.logwarn("here here here here here here here here")
+        tfListener = tf.TransformListener()
+        rospy.Timer(rospy.Duration.from_sec(rate),tfCallback,oneshot=False)
     
     # Generate new sensing graph at specified interval and publish
     sensingPub = rospy.Publisher('/sensingGraph',Sensing,latch=True,queue_size=10)
@@ -65,7 +78,30 @@ def groundStation(): # Main node
     posePub.unregister() # End pose publishing (for avoiding display of errors)
 
 
-def agentPoseCallback(event): # Called at specified rate. gets tf of all agents, concatenating, and publishing to all agents
+def agentPoseCallback(data,args):
+    global poseMsg
+    
+    # Unpack args
+    init_pose = args[0]
+    agentID = args[1]
+    numAgents = len(init_pose)
+    
+    # Update pose array message, at reduced rate
+    if not (data.header.seq % 10):
+        lock.acquire()
+        poseMsg.header.stamp = data.header.stamp
+        poseMsg.poseArray[agentID] = data
+        poseMsg.poseArray[agentID].pose.position.x += init_pose[agentID]['x']
+        poseMsg.poseArray[agentID].pose.position.y += init_pose[agentID]['y']
+        lock.release()
+    
+    # Check for collisions, and publish if all agents pose updated at least once
+    seqs = [poseMsg.poseArray[agentID].header.seq for agentID in range(numAgents)]
+    if all(seqs):
+        publishPose(poseMsg)
+
+
+def tfCallback(event): # Called at specified rate. gets tf of all agents, concatenating, and publishing to all agents
     global tfListener, numAgents
     
     # Initialize message
@@ -73,12 +109,6 @@ def agentPoseCallback(event): # Called at specified rate. gets tf of all agents,
     poseMsg.poseArray = [PoseStamped() for i in range(numAgents)]
     
     try:
-        # Use TF during sim (weird issues between gazebo frame and simulated GPS frame)
-        if mode=='sim':
-            ext = "/base_footprint"
-        else:
-            ext = ""
-        
         for agentID in range(numAgents):
             now = rospy.Time.now()
             
@@ -86,6 +116,11 @@ def agentPoseCallback(event): # Called at specified rate. gets tf of all agents,
             agentPose = PoseStamped()
             agentPose.header.stamp = now
             agentPose.header.frame_id = ns_prefix+str(agentID)
+            
+            if mode=='sim':
+                ext = '/base_footprint'
+            else:
+                ext = ''
             
             tfListener.waitForTransform("/world","/"+ns_prefix+str(agentID)+ext,now,rospy.Duration(0.5))
             (trans,_) = tfListener.lookupTransform("/world","/"+ns_prefix+str(agentID)+ext,now)
@@ -96,21 +131,27 @@ def agentPoseCallback(event): # Called at specified rate. gets tf of all agents,
             poseMsg.poseArray[agentID] = agentPose
         
         # Check for collisions, and publish
-        # agentPosePublish(poseMsg,agentID)
-        pos = [np.array([poseMsg.poseArray[ID].pose.position.x,poseMsg.poseArray[ID].pose.position.y]) for ID in range(numAgents)]
-        error = [pos[i]-pos[j] for i in range(numAgents) for j in range(i+1,numAgents)] # relative displacement between each agent. (numAgents+1 choose 2) number of distinct pairs
-        d = [np.sqrt(np.dot(errori,errori.T)) for errori in error] # distance between agents
-        if any(dJ < collisionBubble for dJ in d):
-            msg = AbortReset(abort=True)
-            abortFlag = True
-            abortPub.publish(msg)
-            rospy.logerr("Ground Station: At least 2 agents broke their collision bubble!")
-            rospy.signal_shutdown("Ground Station: At least 2 agents broke their collision bubble!") # shutdown ground station
-        else: # publish if collision bubble not breached
-            posePub.publish(poseMsg)
+        publishPose(poseMsg)
         
-    except tf.Exception:
-        pass
+    except tf.Exception as e:
+        print e
+
+
+# Check for collisions, and publish pose array message
+def publishPose(poseMsg):
+    pos = [np.array([poseMsg.poseArray[ID].pose.position.x,poseMsg.poseArray[ID].pose.position.y]) for ID in range(numAgents)]
+    
+    d = [((i,j),np.sqrt(np.dot(pos[i]-pos[j],pos[i]-pos[j]))) for i in range(numAgents) for j in range(i+1,numAgents)] # distance between agents, tupled with agent pair
+    if any(dJ[1] < collisionBubble for dJ in d):
+        msg = AbortReset(abort=True)
+        abortPub.publish(msg)
+        rospy.logerr("Ground Station: These agent pairs broke their collision bubble!: "+str([dJ[0] for dJ in d if dJ[1] < collisionBubble]))
+        print pos
+        print [((i,j),pos[i]-pos[j]) for i in range(numAgents) for j in range(i+1,numAgents)]
+        print d
+        rospy.signal_shutdown("Ground Station: At least 2 agents broke their collision bubble!") # shutdown ground station
+    else: # publish if collision bubble not breached
+        posePub.publish(poseMsg)
 
 
  # generate sensing set and publish
@@ -134,7 +175,7 @@ def initFormationHandler(data): # service handler, in case service is applicable
     return GraphsResponse(numAgents,c.tolist(),obstacles.tolist())
 
 
-def readConfig(formation_file,obstacles_file):
+def readConfig(formation_file,obstacles_file,formationScale):
     # Read formation configuration files
     # dir = roslib.packages.get_pkg_dir('formation_control')+"/config" # package directory
     #cFile = "c"+string.capitalize(mode)

@@ -60,7 +60,7 @@ def abortResetCallback(data): # get abort from groundstation
     
     if data.abort == True:
         allAgentPoseSub.unregister() # => dont calculate new control
-        velPub.publish(Twist()) # set zero velocity.
+        [velPub.publish(Twist()) for i in range(100)] # set zero velocity many times, for good measure
         velPub.unregister()
         rospy.signal_shutdown("formationControl: Abort signal recieved from ground station!") # shutdown controller
         

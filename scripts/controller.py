@@ -28,7 +28,7 @@ def calculateControl(parameters,graph,agentPos):
     Nsi = graph['Nsi']
     
     # Calculate some errors
-    pos = np.array(agentPos[agentID]) # Get position relative to origin from ground station, rather than position from local topic
+    pos = np.array(agentPos[agentID]) # Position of this agent
     posError = [pos-np.array(agentJpos) for agentJpos in agentPos] # position difference between this and all agents
     d = np.array([np.sqrt(np.dot(posErrorJ,posErrorJ.T)) for posErrorJ in posError]) # distance between this and all agents
     obsError = [pos-np.array(obstacles[ii,:]) for ii in range(len(obstacles))] # position difference between this agent and obstacles

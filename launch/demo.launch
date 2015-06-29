@@ -5,6 +5,9 @@
     <arg name="mode" value="demo" />
     <param name="collisionBubble" value="0.1" />
     <arg name="ns_prefix" value="ugv" />
+    <arg name="collisionBubble" value="0.2" />
+    <arg name="use_gps" default="false" />
+    <arg name="sensingDropout" default="false" />
     
     <include file="$(find mocap_optitrack)/launch/mocap.launch" />
 
@@ -19,7 +22,11 @@
     <node name="groundStation" pkg="formation_control" type="groundStation.py" output="screen">
         <param name="mode" value="$(arg mode)" />
         <param name="ns_prefix" value="$(arg ns_prefix)" />
+        <param name="sensingDropout" value="$(arg sensingDropout)" />
+        <param name="use_gps" value="$(arg use_gps)" />
+        <param name="collisionBubble" value="$(arg collisionBubble)" />
         <param name="formation" value="$(find formation_control)/config/demo_formation.csv" />
+        <param name="formationScale" value="1.3" />
     </node>
     
 </launch>
