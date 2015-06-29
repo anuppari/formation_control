@@ -159,8 +159,6 @@ def sensingPublisher(event):
     global sensingDropout, numAgents
     
     if sensingDropout:
-        #a = np.random.random_integers(0,1,(numAgents,numAgents)) # generate random array
-        #Ns = ((a+a.T)>0) # symmetrize and convert to bool
         formation = c
         formation.shape = (2,numAgents,numAgents) # convert from 1D to 3D. numAgents rows, numAgents columns, 2 depth
         Nf = [set(np.nonzero(formation[:,agentID,:])[1]) for agentID in range(numAgents)]
