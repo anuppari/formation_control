@@ -8,7 +8,6 @@
 import rospy
 import numpy as np
 import re
-from sets import Set
 from controller import calculateControl
 from formation_control.msg import Sensing, PoseArray, AbortReset, Gamma
 from formation_control.srv import Graphs
@@ -60,7 +59,7 @@ def abortResetCallback(data): # get abort from groundstation
     
     if data.abort == True:
         allAgentPoseSub.unregister() # => dont calculate new control
-        velPub.publish(Twist()) # set zero velocity.
+        [velPub.publish(Twist()) for i in range(100)] # set zero velocity many times, for good measure
         velPub.unregister()
         rospy.signal_shutdown("formationControl: Abort signal recieved from ground station!") # shutdown controller
         
@@ -107,7 +106,7 @@ def sensingCallback(data): # Callback for getting sensing graph
     numAgents = graph['numAgents']
     Ns = np.array(data.Ns)
     Ns.shape = (numAgents,numAgents) # Overall sensing set
-    Nsi = Set(np.nonzero(Ns[agentID,:])[0]) # Sensing set for agent i
+    Nsi = set(np.nonzero(Ns[agentID,:])[0]) # Sensing set for agent i
     Nsi.discard(agentID) # remove this agent from the set of its sensing neighbors
     graph['Nsi'] = Nsi
 
@@ -120,7 +119,7 @@ def parseGraph(data,agentID):
     c = np.array(data.c)
     c.shape = (2,numAgents,numAgents) # convert from 1D to 3D. numAgents rows, numAgents columns, 2 depth
     ci = c[:,agentID,:] # get desired relative positions for this matrix. 2 rows (x,y positions), numAgents columns
-    Nfi = Set(np.nonzero(ci)[1]) # Get formation neighbors set based on desired relative positions
+    Nfi = set(np.nonzero(ci)[1]) # Get formation neighbors set based on desired relative positions
     
     obstacles = np.array(data.obstacles)
     obstacles.shape = (obstacles.size/2,2)

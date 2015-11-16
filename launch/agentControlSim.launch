@@ -7,6 +7,7 @@
     <arg name="mode" default="sim" />
     <arg name="simX" default="0.0" />
     <arg name="simY" default="0.0" />
+    <arg name="use_gps" default="false" />
     
     <group ns="$(arg uavName)">
         
@@ -24,12 +25,19 @@
             <arg name="y" value="$(arg simY)" />
         </include>
         
+        <!-- Make initial conditions available to groundStation -->
+        <param if="$(arg use_gps)" name="initX" value="$(arg simX)" type="double" />
+        <param if="$(arg use_gps)" name="initY" value="$(arg simY)" type="double" />
+        
         <!-- Tune velocity follower controller. This controller is build into hector quadrotor -->
         <param name="controller/twist/linear/xy/k_d" value="2.0" />
         
+        <!-- Pose from GPS/IMU/etc -->
+        <node if="$(arg use_gps)" name="pose_estimation" pkg="hector_pose_estimation" type="pose_estimation" />
+        
         <!-- Start formation controller -->
         <node name="formationControl" pkg="formation_control" type="formationControl.py" output="screen">
-            <rosparam command="load" file="$(find formation_control)/config/simParam.yaml" />
+            <rosparam command="load" file="$(find formation_control)/config/sim_param.yaml" />
             <param name="mode" value="$(arg mode)" />
         </node>
    </group>
