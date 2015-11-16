@@ -16,10 +16,10 @@ qInv = tf.transformations.quaternion_inverse # quaternion inverse function handl
 q2m = tf.transformations.quaternion_matrix # quaternion to 4x4 transformation matrix
 
 Kp_ang = 1
-Kp_lin = 0.5
-kmin = 0.1
-kmax = 3
-leaderID = "/ugv0"
+Kp_lin = 1
+kmin = 0.5
+kmax = 12
+leaderID = "ugv0"
 alpha = 0.3
 
 def lowLevelControl(): # Main node definition
@@ -30,11 +30,11 @@ def lowLevelControl(): # Main node definition
     
     rospy.init_node('lowLevel') #initialize node
     
-    agentID = rospy.get_namespace() # ID of this agent for use in sim and slave/master experimental config
+    agentID = rospy.get_namespace().replace('/','') # ID of this agent for use in sim and slave/master experimental config
     tfListener = tf.TransformListener() # get transform listener
     
     gammaSub = rospy.Subscriber('gamma',Gamma,gammaCallback) # measure of how close to achieving formation
-    velPub = rospy.Publisher('cmd_vel_mux/input/navi',Twist,queue_size=1) # command velocity
+    velPub = rospy.Publisher('cmd_vel_mux/input/navi/raw',Twist,queue_size=1) # command velocity
     desVelSub = rospy.Subscriber('des_vel',Twist,desVelCallback) # high level controller output on this topic
     
     rospy.spin()
@@ -90,13 +90,13 @@ def desVelCallback(velocity):
                 angCmd = 0
                 linCmd = 0
         
-        twistMsg.linear.x = alpha*linCmd + (1-alpha)*lastLinCmd
+        twistMsg.linear.x = linCmd #alpha*linCmd + (1-alpha)*lastLinCmd
         twistMsg.angular.z = angCmd
         velPub.publish(twistMsg)
         
         lastLinCmd = linCmd
-    
-    except tf.Exception:
+        
+    except tf.Exception as e:
         pass
 
 

@@ -1,0 +1,52 @@
+<launch>
+    <arg name="uavName" default="ugv0" />
+    <arg name="joy" default="true" />
+    <arg name="kobuki_publish_odom_tf" default="true" />
+
+    <group ns="$(arg uavName)">
+        <!-- Turtlebot driver -->
+        <include file="minimal2.launch" >
+            <arg name="agentName" value="$(arg uavName)" />
+	    <arg name="kobuki_publish_odom_tf" value="$(arg kobuki_publish_odom_tf)" />
+        </include>
+        
+        <!-- Position and Velocity filter -->
+        <!-- <node pkg="turtlebot_ekf" type="state_filter.py" name="state_filters" /> -->
+        
+        <!-- nodes for teleoperation via xbox 360 controller -->
+        <group if="$(arg joy)">
+            <node pkg="turtlebot_teleop" type="turtlebot_teleop_joy" name="turtlebot_teleop_joystick">
+                <param name="scale_angular" value="1.5"/>
+                <param name="scale_linear" value="0.85"/>
+                <param name="axis_deadman" value="4"/>
+                <param name="axis_linear" value="1"/>
+                <param name="axis_angular" value="0"/>
+                <remap from="turtlebot_teleop_joystick/cmd_vel" to="cmd_vel_mux/input/teleop/raw"/>
+            </node>
+            
+            <node pkg="joy" type="joy_node" name="joystick"/>
+            
+            <!-- Teleop Velocity command smoother -->
+            <include file="$(find yocs_velocity_smoother)/launch/velocity_smoother.launch">
+                <arg name="node_name"             value="teleop_velocity_smoother" />
+                <arg name="nodelet_manager_name"  value="mobile_base_nodelet_manager"/> <!-- name of nodelet manager spun up by kobuki -->
+                <arg name="raw_cmd_vel_topic"     value="cmd_vel_mux/input/teleop/raw"/>
+                <arg name="smooth_cmd_vel_topic"  value="cmd_vel_mux/input/teleop"/>
+                <arg name="robot_cmd_vel_topic"   value="mobile_base/commands/velocity"/>
+                <arg name="odom_topic"            value="odom"/>
+                <arg name="config_file"           value="vel_smoother_config.yaml"/>
+            </include>
+        </group>
+        
+        <!-- navi velocity command smoother -->
+        <include file="$(find yocs_velocity_smoother)/launch/velocity_smoother.launch">
+          <arg name="node_name"             value="navi_velocity_smoother" />
+          <arg name="nodelet_manager_name"  value="mobile_base_nodelet_manager"/> <!-- name of nodelet manager spun up by kobuki -->
+          <arg name="raw_cmd_vel_topic"     value="cmd_vel_mux/input/navi/raw"/>
+          <arg name="smooth_cmd_vel_topic"  value="cmd_vel_mux/input/navi"/>
+          <arg name="robot_cmd_vel_topic"   value="mobile_base/commands/velocity"/>
+          <arg name="odom_topic"            value="odom"/>
+          <arg name="config_file"           value="vel_smoother_config.yaml"/>
+        </include>
+    </group>
+</launch>

@@ -10,7 +10,8 @@ import numpy as np
 import roslib
 import string
 import tf
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, Twist
+from sensor_msgs.msg import Joy
 from formation_control.msg import PoseArray, Sensing, AbortReset
 from formation_control.srv import Graphs, GraphsResponse
 
@@ -18,7 +19,7 @@ formationScale = 1.3
 
 def groundStation(): # Main node
     global c, obstacles, numAgents, sensingPub, sensingDropout
-    global posePub, abortPub, tfListener
+    global posePub, abortPub, tfListener, velPubs
     global abortFlag, mode, collisionBubble, ns_prefix
     
     rospy.init_node('groundStation')
@@ -55,12 +56,26 @@ def groundStation(): # Main node
     rospy.loginfo("Publishing sensing graph on topic /sensingGraph")
     rospy.Timer(rospy.Duration(1), sensingPublisher) # publish sensing graph info at specified rate
     
+    # Pause on button press
+    velPubs = [rospy.Publisher(ns_prefix+str(ii)+'/cmd_vel_mux/input/teleop',Twist,queue_size=1) for ii in range(numAgents)] # turtlebot velocity publisher
+    joySub = rospy.Subscriber('joy',Joy,joyCallback)
+    
     # abort publisher
     abortPub = rospy.Publisher('/abortReset',AbortReset,latch=True,queue_size=10)
     rospy.loginfo("Monitoring agents for potential collisions...")
     
     rospy.spin() # block until rospy shutdown
     posePub.unregister() # End pose publishing (for avoiding display of errors)
+
+
+def joyCallback(data):
+    global velPubs
+    
+    if data.buttons[0]: # A - pause, i.e. hold zero velocity
+        joyVel = Twist()
+        [velPub.publish(joyVel) for velPub in velPubs]
+        print "Paused"
+
 
 
 def agentPoseCallback(event): # Called at specified rate. gets tf of all agents, concatenating, and publishing to all agents

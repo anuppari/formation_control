@@ -11,5 +11,5 @@
     </node>
 
     <!-- low level WMR controller -->
-    <node name="lowLevelController" pkg="formation_control" type="lowLevelControl.py" />
+    <node name="lowLevelController" pkg="formation_control" type="turtlebotControl.py" output="screen"/>
 </launch>
